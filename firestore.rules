@@ -1,0 +1,97 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users
+    // Document ID: {userId} (matches auth.uid)
+    // Fields:
+    //   - uid: string (required)
+    //   - displayName: string (optional)
+    //   - email: string (required, PII)
+    //   - photoURL: string (optional)
+    //   - createdAt: string (format: date-time)
+    //
+    // Collection: interactions
+    // Document ID: {interactionId}
+    // Fields:
+    //   - userId: string (optional)
+    //   - query: string (required)
+    //   - response: string (required)
+    //   - model: string (optional)
+    //   - timestamp: string (format: date-time)
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+          (request.auth.token.email == "vinochelo2@gmail.com" && request.auth.token.email_verified == true));
+    }
+
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+
+    function isValidEmail(email) {
+      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    function isValidDateString(dateStr) {
+      return dateStr is string && dateStr.matches("^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}.*Z?$");
+    }
+
+    // ===============================================================
+    // Collection Rules
+    // ===============================================================
+
+    // User profiles: Only owner can read/write their own profile
+    match /users/{userId} {
+      function isValidUser(data) {
+        return data.uid is string && data.uid.size() > 0 && data.uid.size() < 128 &&
+               isValidEmail(data.email) &&
+               (!('displayName' in data) || (data.displayName is string && data.displayName.size() < 100)) &&
+               (!('photoURL' in data) || (data.photoURL is string && data.photoURL.size() < 500)) &&
+               isValidDateString(data.createdAt);
+      }
+
+      allow read: if isOwner(userId) || isAdmin();
+      allow create: if isOwner(userId) && isValidUser(request.resource.data) && (!('role' in request.resource.data) || isAdmin());
+      allow update: if isOwner(userId) && isValidUser(request.resource.data) && (request.resource.data.role == resource.data.role || isAdmin());
+      allow delete: if isAdmin();
+    }
+
+    // Interactions: Users can create their own, admins can read all
+    match /interactions/{interactionId} {
+      function isValidInteraction(data) {
+        return data.query is string && data.query.size() > 0 && data.query.size() < 5000 &&
+               data.response is string && data.response.size() > 0 && data.response.size() < 10000 &&
+               isValidDateString(data.timestamp);
+      }
+
+      allow read: if isAdmin();
+      allow create: if isValidInteraction(request.resource.data) && 
+                      (!('userId' in request.resource.data) || request.resource.data.userId == request.auth.uid);
+      allow update, delete: if isAdmin();
+    }
+
+    // Default deny
+    match /{path=**} {
+      allow read, write: if false;
+    }
+  }
+}
