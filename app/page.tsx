@@ -293,9 +293,24 @@ function GroqTester() {
           !m.id.includes('whisper') && 
           !m.id.includes('guard')
         );
-        setAvailableModels(chatModels);
-        if (chatModels.length > 0) {
-          setModel(chatModels[0].id);
+        
+        // Asegurar que los modelos de respaldo estén en la lista si no aparecen en la API
+        const fallbackModels = [
+          "openai/gpt-oss-120b",
+          "llama-3.3-70b-versatile",
+          "qwen/qwen3-32b"
+        ];
+        
+        const combinedModels = [...chatModels];
+        fallbackModels.forEach(fm => {
+          if (!combinedModels.find(m => m.id === fm)) {
+            combinedModels.unshift({ id: fm });
+          }
+        });
+
+        setAvailableModels(combinedModels);
+        if (combinedModels.length > 0) {
+          setModel(combinedModels[0].id);
           setIsManualModel(false);
         } else {
           setIsManualModel(true);

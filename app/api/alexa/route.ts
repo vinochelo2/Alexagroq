@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getSelectedModel } from '@/lib/config';
+import { getSelectedModel, FALLBACK_MODELS } from '@/lib/config';
 
 export async function GET() {
   return NextResponse.json({ status: "ok", message: "El endpoint de Alexa está funcionando correctamente." });
@@ -85,7 +85,7 @@ function buildAlexaResponse(text: string, shouldEndSession: boolean) {
   };
 }
 
-// Función para llamar a la API de Groq
+// Función para llamar a la API de Groq con reintentos en modelos de respaldo
 async function callGroq(prompt: string) {
   const apiKey = process.env.GROQ_API_KEY;
   
@@ -93,38 +93,51 @@ async function callGroq(prompt: string) {
     return "La clave de API de Groq no está configurada en el servidor.";
   }
 
-  try {
-    const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: getSelectedModel(), // Usa el modelo seleccionado desde la UI o el de entorno
-        messages: [
-          {
-            role: "system",
-            content: "Eres un asistente de voz útil, conciso y directo. Estás respondiendo a través de un altavoz inteligente Alexa, así que tus respuestas deben ser cortas, claras, conversacionales y sin formato markdown (sin asteriscos, sin negritas, sin viñetas). Usa un tono amigable.",
-          },
-          {
-            role: "user",
-            content: prompt,
-          },
-        ],
-      }),
-    });
+  // Lista de modelos a intentar: el seleccionado primero, luego los de respaldo si no están ya incluidos
+  const selectedModel = getSelectedModel();
+  const modelsToTry = [selectedModel, ...FALLBACK_MODELS.filter(m => m !== selectedModel)];
 
-    if (!res.ok) {
+  for (const model of modelsToTry) {
+    try {
+      console.log(`Intentando llamar a Groq con el modelo: ${model}`);
+      const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model: model,
+          messages: [
+            {
+              role: "system",
+              content: "Eres un asistente de voz útil, conciso y directo. Estás respondiendo a través de un altavoz inteligente Alexa, así que tus respuestas deben ser cortas, claras, conversacionales y sin formato markdown (sin asteriscos, sin negritas, sin viñetas). Usa un tono amigable.",
+            },
+            {
+              role: "user",
+              content: prompt,
+            },
+          ],
+        }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        return data.choices[0].message.content;
+      }
+
       const errorText = await res.text();
-      console.error("Groq API Error:", errorText);
-      return "Hubo un problema al conectarse con Groq. Por favor, inténtalo más tarde.";
-    }
+      console.warn(`Error con el modelo ${model} (${res.status}): ${errorText}. Intentando el siguiente...`);
+      
+      // Si el error es 401 (No autorizado), no tiene sentido reintentar con otros modelos
+      if (res.status === 401) {
+        return "Error de autenticación con Groq. Verifica tu API Key.";
+      }
 
-    const data = await res.json();
-    return data.choices[0].message.content;
-  } catch (error) {
-    console.error("Error de red al llamar a Groq:", error);
-    return "No pude conectarme a internet para consultar a Groq.";
+    } catch (error) {
+      console.error(`Error de red con el modelo ${model}:`, error);
+    }
   }
+
+  return "No pude obtener una respuesta de ninguno de los modelos de Groq. Por favor, inténtalo más tarde.";
 }
