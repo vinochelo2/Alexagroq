@@ -7,12 +7,13 @@ const globalStore = globalThis as unknown as {
 };
 
 export const FALLBACK_MODELS = [
-  "openai/gpt-oss-120b",
   "llama-3.3-70b-versatile",
-  "qwen/qwen3-32b"
+  "llama-3.1-8b-instant",
+  "mixtral-8x7b-32768"
 ];
 
 export function getSelectedModel(): string {
+  // Priority: 1. Runtime selection (globalStore), 2. Environment variable, 3. Default fallback
   return globalStore.__GROQ_MODEL || process.env.GROQ_MODEL || FALLBACK_MODELS[0];
 }
 

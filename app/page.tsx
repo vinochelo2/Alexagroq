@@ -13,7 +13,7 @@ export default function Home() {
             <div className="bg-indigo-600 p-2 rounded-lg">
               <Mic className="w-5 h-5 text-white" />
             </div>
-            <h1 className="text-xl font-bold tracking-tight">Alexa + Groq</h1>
+            <h1 className="text-xl font-bold tracking-tight">Alexa + Super IA</h1>
           </div>
           <a
             href="https://developer.amazon.com/alexa/console/ask"
@@ -30,7 +30,7 @@ export default function Home() {
         {/* Hero Section */}
         <section className="text-center max-w-3xl mx-auto space-y-6">
           <h2 className="text-4xl md:text-5xl font-extrabold tracking-tight text-slate-900">
-            Dale superpoderes a tu Alexa con <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-violet-600">Groq</span>
+            Dale superpoderes a tu Alexa con <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-violet-600">Super IA</span>
           </h2>
           <p className="text-lg text-slate-600 leading-relaxed">
             Esta aplicación actúa como el &quot;cerebro&quot; (backend) de tu nueva Skill de Alexa. 
@@ -97,7 +97,7 @@ export default function Home() {
           >
             <ol className="list-decimal list-inside space-y-3 text-slate-700 mt-4 ml-2">
               <li>Ve a la <a href="https://developer.amazon.com/alexa/console/ask" target="_blank" rel="noreferrer" className="text-indigo-600 hover:underline font-medium">Alexa Developer Console</a> y haz clic en <strong>Create Skill</strong>.</li>
-              <li><strong>Name, Locale:</strong> Ponle un nombre (ej. &quot;Asistente Groq&quot;) y elige tu idioma. Haz clic en <strong>Next</strong>.</li>
+              <li><strong>Name, Locale:</strong> Ponle un nombre (ej. &quot;Super IA&quot;) y elige tu idioma. Haz clic en <strong>Next</strong>.</li>
               <li><strong>Experience, Model, Hosting:</strong> Selecciona <strong>Other</strong> &gt; <strong>Custom</strong> y en Hosting elige <strong>Provision your own</strong>. Haz clic en <strong>Next</strong>.</li>
               <li><strong>Templates:</strong> Selecciona la opción <strong>Start from Scratch</strong> (la primera caja). Haz clic en <strong>Next</strong>.</li>
               <li><strong>Review:</strong> Revisa los datos y haz clic en <strong>Create Skill</strong>.</li>
@@ -158,7 +158,7 @@ export default function Home() {
               <li>Ve a la pestaña <strong>Test</strong> en el menú superior de la consola de Alexa.</li>
               <li>Donde dice &quot;Skill testing is enabled in&quot;, cambia de &quot;Off&quot; a <strong>Development</strong>.</li>
               <li>En el cuadro de texto (o usando tu micrófono), escribe: <br/>
-                <code className="bg-slate-100 px-2 py-1 rounded text-slate-800 font-medium mt-2 inline-block">abre mi asistente groq y dime qué es la física cuántica</code>
+                <code className="bg-slate-100 px-2 py-1 rounded text-slate-800 font-medium mt-2 inline-block">abre super ia y dime qué es la física cuántica</code>
               </li>
             </ol>
             
@@ -468,7 +468,7 @@ function GroqTester() {
 const interactionModelJson = `{
   "interactionModel": {
     "languageModel": {
-      "invocationName": "mi asistente groq",
+      "invocationName": "super ia",
       "intents": [
         {
           "name": "AMAZON.CancelIntent",
@@ -480,6 +480,10 @@ const interactionModelJson = `{
         },
         {
           "name": "AMAZON.StopIntent",
+          "samples": []
+        },
+        {
+          "name": "AMAZON.FallbackIntent",
           "samples": []
         },
         {
@@ -495,11 +499,15 @@ const interactionModelJson = `{
             }
           ],
           "samples": [
-            "pregúntale a groq {Query}",
-            "qué opina groq de {Query}",
+            "{Query}",
+            "pregunta {Query}",
+            "consulta {Query}",
+            "busca {Query}",
             "dime {Query}",
             "qué es {Query}",
-            "quién es {Query}"
+            "quién es {Query}",
+            "qué puedes hacer",
+            "qué sabes hacer"
           ]
         }
       ],

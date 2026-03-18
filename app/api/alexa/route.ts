@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSelectedModel, FALLBACK_MODELS } from '@/lib/config';
+import * as Sentry from "@sentry/nextjs";
 
 export async function GET() {
   return NextResponse.json({ status: "ok", message: "El endpoint de Alexa está funcionando correctamente." });
@@ -17,7 +18,7 @@ export async function POST(req: Request) {
     // 1. Manejar cuando el usuario abre la skill ("Alexa, abre mi asistente groq")
     if (requestType === 'LaunchRequest') {
       return NextResponse.json(
-        buildAlexaResponse("Hola, soy tu asistente Groq. ¿Qué quieres saber?", false)
+        buildAlexaResponse("Hola, soy Super IA. ¿Qué quieres saber?", false)
       );
     }
 
@@ -25,15 +26,16 @@ export async function POST(req: Request) {
     if (requestType === 'IntentRequest') {
       const intentName = body.request.intent.name;
 
-      if (intentName === 'GroqIntent') {
+      if (intentName === 'GroqIntent' || intentName === 'AMAZON.FallbackIntent') {
         // Obtener la pregunta del usuario desde el slot "Query"
         const query =
           body.request.intent.slots?.Query?.value ||
           body.request.intent.slots?.query?.value;
 
         if (!query) {
+          // Si es FallbackIntent o no hay query, pedimos que repita de forma más amable
           return NextResponse.json(
-            buildAlexaResponse("No escuché bien tu pregunta. ¿Puedes repetirla?", false)
+            buildAlexaResponse("No estoy seguro de haberte entendido. ¿Puedes repetirlo o preguntarme de otra forma?", false)
           );
         }
 
@@ -61,9 +63,10 @@ export async function POST(req: Request) {
 
     // Respuesta por defecto si no entendemos la solicitud
     return NextResponse.json(
-      buildAlexaResponse("Lo siento, no entendí eso.", false)
+      buildAlexaResponse("Lo siento, soy Super IA y no entendí eso.", false)
     );
   } catch (error) {
+    Sentry.captureException(error);
     console.error("Error en el endpoint de Alexa:", error);
     return NextResponse.json(
       buildAlexaResponse("Hubo un error al procesar tu solicitud.", true)
@@ -72,16 +75,27 @@ export async function POST(req: Request) {
 }
 
 // Función auxiliar para construir la respuesta en el formato que espera Alexa
-function buildAlexaResponse(text: string, shouldEndSession: boolean) {
-  return {
-    version: "1.0",
-    response: {
+function buildAlexaResponse(text: string, shouldEndSession: boolean, repromptText?: string) {
+  const response: any = {
+    outputSpeech: {
+      type: "PlainText",
+      text: text,
+    },
+    shouldEndSession,
+  };
+
+  if (!shouldEndSession) {
+    response.reprompt = {
       outputSpeech: {
         type: "PlainText",
-        text: text,
+        text: repromptText || "¿En qué más puedo ayudarte?",
       },
-      shouldEndSession,
-    },
+    };
+  }
+
+  return {
+    version: "1.0",
+    response,
   };
 }
 
@@ -100,12 +114,18 @@ async function callGroq(prompt: string) {
   for (const model of modelsToTry) {
     try {
       console.log(`Intentando llamar a Groq con el modelo: ${model}`);
+      
+      // Alexa tiene un timeout de 8 segundos. Configuramos un timeout de 7 segundos para nosotros.
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 7000);
+
       const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${apiKey}`,
         },
+        signal: controller.signal,
         body: JSON.stringify({
           model: model,
           messages: [
@@ -121,9 +141,11 @@ async function callGroq(prompt: string) {
         }),
       });
 
+      clearTimeout(timeoutId);
+
       if (res.ok) {
         const data = await res.json();
-        return data.choices[0].message.content;
+        return data.choices[0]?.message?.content || "No obtuve una respuesta clara de Groq.";
       }
 
       const errorText = await res.text();
@@ -134,10 +156,14 @@ async function callGroq(prompt: string) {
         return "Error de autenticación con Groq. Verifica tu API Key.";
       }
 
-    } catch (error) {
-      console.error(`Error de red con el modelo ${model}:`, error);
+    } catch (error: any) {
+      if (error.name === 'AbortError') {
+        console.error(`Timeout con el modelo ${model}`);
+      } else {
+        console.error(`Error de red con el modelo ${model}:`, error);
+      }
     }
   }
 
-  return "No pude obtener una respuesta de ninguno de los modelos de Groq. Por favor, inténtalo más tarde.";
+  return "Lo siento, me tomó demasiado tiempo procesar tu pregunta o hubo un error técnico. Por favor, intenta con algo más corto.";
 }
