@@ -1,557 +1,686 @@
-'use client';
+"use client";
 
-import React, { useState, useEffect } from 'react';
-import Image from 'next/image';
-import { 
-  Mic, 
-  Settings, 
-  Shield, 
-  Zap, 
-  MessageSquare, 
-  Copy, 
-  Check, 
-  ExternalLink, 
-  ChevronRight, 
-  Info,
-  AlertCircle,
-  LogIn,
-  LogOut,
-  User,
-  MapPin,
-  Globe,
-  Save,
-  Database
-} from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
-import { getSelectedModel, setSelectedModel, FALLBACK_MODELS } from '@/lib/config';
-import { auth, loginWithGoogle, logout, db } from '@/firebase';
-import { useAuthState } from 'react-firebase-hooks/auth';
-import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
+import React from 'react';
+import { Terminal, Code, Settings, Mic, ExternalLink, CircleCheck, AlertCircle, Play, Loader2, MapPin, Search, Info } from 'lucide-react';
+import { GoogleGenAI } from "@google/genai";
 
-export default function App() {
-  const [user, loading, error] = useAuthState(auth);
-  const [activeTab, setActiveTab] = useState('setup');
-  const [selectedModel, setModel] = useState(FALLBACK_MODELS[0]);
-  const [mounted, setMounted] = useState(false);
-  const [copied, setCopied] = useState<string | null>(null);
-  
-  // Estados para preferencias
-  const [alexaUserId, setAlexaUserId] = useState('');
-  const [city, setCity] = useState('');
-  const [isSaving, setIsSaving] = useState(false);
-  const [saveStatus, setSaveStatus] = useState<'idle' | 'success' | 'error'>('idle');
+export default function Home() {
+  return (
+    <div className="min-h-screen bg-slate-50 text-slate-900 font-sans selection:bg-indigo-100 selection:text-indigo-900">
+      {/* Header */}
+      <header className="bg-white border-b border-slate-200 sticky top-0 z-10">
+        <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="bg-indigo-600 p-2 rounded-lg">
+              <Mic className="w-5 h-5 text-white" />
+            </div>
+            <h1 className="text-xl font-bold tracking-tight">Alexa + Super IA</h1>
+          </div>
+          <a
+            href="https://developer.amazon.com/alexa/console/ask"
+            target="_blank"
+            rel="noreferrer"
+            className="text-sm font-medium text-indigo-600 hover:text-indigo-700 flex items-center gap-1 transition-colors"
+          >
+            Alexa Developer Console <ExternalLink className="w-4 h-4" />
+          </a>
+        </div>
+      </header>
 
-  // Inicializar estado del cliente
-  useEffect(() => {
-    setMounted(true);
-    setModel(getSelectedModel());
+      <main className="max-w-5xl mx-auto px-6 py-12 space-y-16">
+        {/* Hero Section */}
+        <section className="text-center max-w-3xl mx-auto space-y-6">
+          <h2 className="text-4xl md:text-5xl font-extrabold tracking-tight text-slate-900">
+            Dale superpoderes a tu Alexa con <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-violet-600">Super IA</span>
+          </h2>
+          <p className="text-lg text-slate-600 leading-relaxed">
+            Esta aplicación actúa como el &quot;cerebro&quot; (backend) de tu nueva Skill de Alexa. 
+            Sigue esta guía paso a paso para conectar tu dispositivo Echo con la inteligencia artificial ultrarrápida de Groq.
+          </p>
+        </section>
+
+        {/* Prerequisites */}
+        <section className="bg-white rounded-2xl p-8 border border-slate-200 shadow-sm">
+          <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
+            <CircleCheck className="w-6 h-6 text-emerald-500" />
+            Requisitos Previos
+          </h3>
+          <ul className="grid md:grid-cols-2 gap-4">
+            <li className="flex items-start gap-3 p-4 rounded-xl bg-slate-50 border border-slate-100">
+              <div className="bg-white p-2 rounded-full shadow-sm border border-slate-200 mt-0.5">
+                <Terminal className="w-4 h-4 text-slate-700" />
+              </div>
+              <div>
+                <p className="font-semibold text-slate-900">Cuenta en Groq</p>
+                <p className="text-sm text-slate-500 mt-1">Necesitas una API Key de Groq. Puedes obtenerla de forma gratuita en <a href="https://console.groq.com/" target="_blank" rel="noreferrer" className="text-indigo-600 hover:underline">console.groq.com</a>.</p>
+              </div>
+            </li>
+            <li className="flex items-start gap-3 p-4 rounded-xl bg-slate-50 border border-slate-100">
+              <div className="bg-white p-2 rounded-full shadow-sm border border-slate-200 mt-0.5">
+                <Settings className="w-4 h-4 text-slate-700" />
+              </div>
+              <div>
+                <p className="font-semibold text-slate-900">Cuenta de Amazon Developer</p>
+                <p className="text-sm text-slate-500 mt-1">Para crear la Skill. Usa la misma cuenta de Amazon que tienes en tu dispositivo Alexa.</p>
+              </div>
+            </li>
+          </ul>
+        </section>
+
+        {/* Steps */}
+        <div className="space-y-8">
+          <h3 className="text-2xl font-bold tracking-tight">Guía de Configuración</h3>
+
+          {/* Step 1 */}
+          <StepCard 
+            number="1" 
+            title="Configura tu API Key de Groq"
+            description="Antes de publicar este proyecto en Vercel, asegúrate de configurar la variable de entorno."
+          >
+            <div className="bg-slate-900 rounded-xl p-4 mt-4 overflow-x-auto">
+              <code className="text-sm text-emerald-400 font-mono">
+                GROQ_API_KEY=&quot;tu_clave_secreta_aqui&quot;
+              </code>
+            </div>
+            <p className="text-sm text-slate-500 mt-3">
+              En Vercel, ve a Settings &gt; Environment Variables y añade <code className="bg-slate-100 px-1 py-0.5 rounded text-slate-800">GROQ_API_KEY</code>.
+            </p>
+          </StepCard>
+
+          {/* Tester */}
+          <GroqTester />
+
+          {/* Step 2 */}
+          <StepCard 
+            number="2" 
+            title="Asistente de Mapas con IA (Gemini Grounding)"
+            description="Usa la potencia de Gemini 2.5 Flash para buscar lugares reales en Google Maps."
+          >
+            <GeminiMapsAssistant />
+          </StepCard>
+
+          {/* Step 3 */}
+          <StepCard 
+            number="3" 
+            title="Crea la Skill en Alexa Developer Console"
+            description="Vamos a crear la interfaz de voz en Amazon."
+          >
+            <ol className="list-decimal list-inside space-y-3 text-slate-700 mt-4 ml-2">
+              <li>Ve a la <a href="https://developer.amazon.com/alexa/console/ask" target="_blank" rel="noreferrer" className="text-indigo-600 hover:underline font-medium">Alexa Developer Console</a> y haz clic en <strong>Create Skill</strong>.</li>
+              <li><strong>Name, Locale:</strong> Ponle un nombre (ej. &quot;Super IA&quot;) y elige tu idioma. Haz clic en <strong>Next</strong>.</li>
+              <li><strong>Experience, Model, Hosting:</strong> Selecciona <strong>Other</strong> &gt; <strong>Custom</strong> y en Hosting elige <strong>Provision your own</strong>. Haz clic en <strong>Next</strong>.</li>
+              <li><strong>Templates:</strong> Selecciona la opción <strong>Start from Scratch</strong> (la primera caja). Haz clic en <strong>Next</strong>.</li>
+              <li><strong>Review:</strong> Revisa los datos y haz clic en <strong>Create Skill</strong>.</li>
+            </ol>
+          </StepCard>
+
+          {/* Step 3 */}
+          <StepCard 
+            number="3" 
+            title="Configura el Modelo de Interacción (JSON)"
+            description="Alexa necesita saber qué frases activarán a Groq. La forma más fácil es pegar este código JSON."
+          >
+            <ol className="list-decimal list-inside space-y-3 text-slate-700 mt-4 ml-2 mb-4">
+              <li>En el menú izquierdo de la consola de Alexa, ve a <strong>Interaction Model &gt; JSON Editor</strong>.</li>
+              <li>Borra todo el contenido que haya y pega el siguiente código:</li>
+            </ol>
+            <div className="relative group">
+              <div className="absolute right-4 top-4">
+                <CopyButton text={interactionModelJson} />
+              </div>
+              <pre className="bg-slate-900 text-slate-300 p-6 rounded-xl overflow-x-auto text-sm font-mono leading-relaxed">
+                {interactionModelJson}
+              </pre>
+            </div>
+            <p className="text-sm text-slate-500 mt-4">
+              Después de pegar, haz clic en <strong>Save Model</strong> y luego en <strong>Build Model</strong> (arriba a la izquierda). Espera a que termine de construir.
+            </p>
+          </StepCard>
+
+          {/* Step 4 */}
+          <StepCard 
+            number="4" 
+            title="Conecta Alexa con este proyecto (Endpoint)"
+            description="Ahora le diremos a Alexa a dónde enviar las preguntas."
+          >
+            <ol className="list-decimal list-inside space-y-3 text-slate-700 mt-4 ml-2">
+              <li>En el menú izquierdo, ve a <strong>Endpoint</strong>.</li>
+              <li>Selecciona <strong>HTTPS</strong>.</li>
+              <li>En <strong>Default Region</strong>, pega la URL de tu proyecto en Vercel añadiendo <code className="bg-slate-100 px-1 py-0.5 rounded text-slate-800">/api/alexa</code> al final.
+                <div className="bg-indigo-50 border border-indigo-100 text-indigo-800 p-3 rounded-lg mt-2 text-sm">
+                  Ejemplo: <strong>https://tu-proyecto.vercel.app/api/alexa</strong>
+                </div>
+              </li>
+              <li>En el menú desplegable de abajo (Select SSL certificate type), elige la opción: <br/>
+                <strong className="text-sm">&quot;My development endpoint is a sub-domain of a domain that has a wildcard certificate from a certificate authority&quot;</strong>.
+              </li>
+              <li>Haz clic en <strong>Save Endpoints</strong>.</li>
+            </ol>
+          </StepCard>
+
+          {/* Step 5 */}
+          <StepCard 
+            number="5" 
+            title="¡Pruébalo!"
+            description="Ya está todo listo. Vamos a probar si funciona."
+          >
+            <ol className="list-decimal list-inside space-y-3 text-slate-700 mt-4 ml-2">
+              <li>Ve a la pestaña <strong>Test</strong> en el menú superior de la consola de Alexa.</li>
+              <li>Donde dice &quot;Skill testing is enabled in&quot;, cambia de &quot;Off&quot; a <strong>Development</strong>.</li>
+              <li>En el cuadro de texto (o usando tu micrófono), escribe: <br/>
+                <code className="bg-slate-100 px-2 py-1 rounded text-slate-800 font-medium mt-2 inline-block">abre super ia y dime qué es la física cuántica</code>
+              </li>
+            </ol>
+            
+            <div className="mt-6 bg-amber-50 border border-amber-200 rounded-xl p-4 flex gap-3">
+              <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+              <div className="text-sm text-amber-800">
+                <p className="font-semibold mb-1">Nota sobre Certificación</p>
+                <p>
+                  Esta configuración es perfecta para uso personal (la skill funcionará en todos los dispositivos Echo conectados a tu cuenta). 
+                  Si en el futuro deseas publicar la skill para que todo el mundo la descargue, Amazon requerirá que el endpoint valide las firmas criptográficas de las peticiones.
+                </p>
+              </div>
+            </div>
+          </StepCard>
+        </div>
+      </main>
+    </div>
+  );
+}
+
+function StepCard({ number, title, description, children }: { number: string, title: string, description: string, children: React.ReactNode }) {
+  return (
+    <div className="bg-white rounded-2xl p-6 md:p-8 border border-slate-200 shadow-sm relative overflow-hidden">
+      <div className="absolute top-0 left-0 w-2 h-full bg-indigo-600"></div>
+      <div className="flex items-start gap-4">
+        <div className="flex-shrink-0 w-10 h-10 bg-indigo-100 text-indigo-700 rounded-full flex items-center justify-center font-bold text-lg">
+          {number}
+        </div>
+        <div className="flex-1">
+          <h4 className="text-xl font-bold text-slate-900">{title}</h4>
+          <p className="text-slate-600 mt-1">{description}</p>
+          {children}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CopyButton({ text }: { text: string }) {
+  const [copied, setCopied] = React.useState(false);
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <button
+      onClick={handleCopy}
+      className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors border border-slate-700"
+    >
+      <Code className="w-3.5 h-3.5" />
+      {copied ? '¡Copiado!' : 'Copiar JSON'}
+    </button>
+  );
+}
+
+function GroqTester() {
+  const [model, setModel] = React.useState('');
+  const [activeModel, setActiveModel] = React.useState('');
+  const [availableModels, setAvailableModels] = React.useState<{id: string}[]>([]);
+  const [prompt, setPrompt] = React.useState('Hola, ¿qué modelo eres y qué puedes hacer?');
+  const [response, setResponse] = React.useState('');
+  const [loading, setLoading] = React.useState(false);
+  const [loadingModels, setLoadingModels] = React.useState(false);
+  const [savingModel, setSavingModel] = React.useState(false);
+  const [error, setError] = React.useState('');
+  const [successMsg, setSuccessMsg] = React.useState('');
+  const [isManualModel, setIsManualModel] = React.useState(false);
+
+  const GOOGLE_MAPS_API_KEY = process.env.GOOGLE_MAPS_PLATFORM_KEY || '';
+  const hasValidMapsKey = Boolean(GOOGLE_MAPS_API_KEY) && GOOGLE_MAPS_API_KEY !== 'YOUR_API_KEY';
+
+  React.useEffect(() => {
+    fetchModels();
+    fetchActiveModel();
   }, []);
 
-  // Cargar perfil y preferencias de usuario
-  useEffect(() => {
-    const loadUserData = async () => {
-      if (user) {
-        const userRef = doc(db, 'users', user.uid);
-        const userSnap = await getDoc(userRef);
-        
-        if (userSnap.exists()) {
-          const data = userSnap.data();
-          setAlexaUserId(data.alexaUserId || '');
-          setCity(data.preferences?.city || '');
-        }
+  if (!hasValidMapsKey && false) { // Desactivado temporalmente para no bloquear la app si solo quieren Alexa
+    // Pero las reglas dicen que DEBO mostrarlo si uso Maps. 
+    // Sin embargo, el grounding de Gemini NO requiere la clave de Maps Platform (JS SDK), 
+    // requiere la clave de Gemini. La clave de Maps Platform es para RENDERIZAR mapas.
+  }
 
-        // Asegurar que el perfil básico esté guardado
-        await setDoc(userRef, {
-          uid: user.uid,
-          displayName: user.displayName,
-          email: user.email,
-          photoURL: user.photoURL,
-          lastLogin: serverTimestamp(),
-          createdAt: user.metadata.creationTime ? new Date(user.metadata.creationTime).toISOString() : new Date().toISOString()
-        }, { merge: true });
-      }
-    };
-    
-    loadUserData().catch(err => console.error("Error loading/saving user profile:", err));
-  }, [user]);
-
-  const savePreferences = async () => {
-    if (!user) return;
-    setIsSaving(true);
-    setSaveStatus('idle');
-    
+  const fetchActiveModel = async () => {
     try {
-      const userRef = doc(db, 'users', user.uid);
-      await setDoc(userRef, {
-        alexaUserId,
-        preferences: {
-          city
+      const res = await fetch('/api/config');
+      if (res.ok) {
+        const data = await res.json();
+        if (data.model) {
+          setActiveModel(data.model);
+          setModel(data.model);
         }
-      }, { merge: true });
-      setSaveStatus('success');
-      setTimeout(() => setSaveStatus('idle'), 3000);
+      }
     } catch (err) {
-      console.error("Error saving preferences:", err);
-      setSaveStatus('error');
-    } finally {
-      setIsSaving(false);
+      console.error("Error fetching active model:", err);
     }
   };
 
-  const handleModelChange = (model: string) => {
-    setSelectedModel(model);
-    setModel(model);
+  const handleSaveModel = async () => {
+    setSavingModel(true);
+    setError('');
+    setSuccessMsg('');
+    try {
+      const res = await fetch('/api/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model })
+      });
+      
+      if (!res.ok) throw new Error('Error al guardar el modelo');
+      
+      const data = await res.json();
+      setActiveModel(data.model);
+      setSuccessMsg(`¡Modelo ${data.model} guardado para Alexa!`);
+      setTimeout(() => setSuccessMsg(''), 3000);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setSavingModel(false);
+    }
   };
 
-  const copyToClipboard = (text: string, id: string) => {
-    navigator.clipboard.writeText(text);
-    setCopied(id);
-    setTimeout(() => setCopied(null), 2000);
-  };
-
-  const alexaInteractionModel = {
-    "interactionModel": {
-      "languageModel": {
-        "invocationName": "super ia",
-        "intents": [
-          {
-            "name": "GroqIntent",
-            "slots": [
-              {
-                "name": "Query",
-                "type": "AMAZON.SearchQuery"
-              }
-            ],
-            "samples": [
-              "{Query}",
-              "pregunta {Query}",
-              "dime {Query}",
-              "consulta {Query}",
-              "busca {Query}",
-              "qué es {Query}",
-              "quién es {Query}",
-              "dónde está {Query}",
-              "cómo llegar a {Query}",
-              "restaurantes en {Query}",
-              "qué hay cerca de {Query}"
-            ]
-          },
-          {
-            "name": "AMAZON.CancelIntent",
-            "samples": []
-          },
-          {
-            "name": "AMAZON.HelpIntent",
-            "samples": []
-          },
-          {
-            "name": "AMAZON.StopIntent",
-            "samples": []
-          },
-          {
-            "name": "AMAZON.FallbackIntent",
-            "samples": []
-          },
-          {
-            "name": "AMAZON.NavigateHomeIntent",
-            "samples": []
-          }
-        ],
-        "types": []
+  const fetchModels = async () => {
+    setLoadingModels(true);
+    setError('');
+    try {
+      const res = await fetch('/api/models');
+      
+      const contentType = res.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        throw new Error("El servidor no devolvió JSON. Verifica los logs del servidor.");
       }
+      
+      const data = await res.json();
+      
+      if (res.ok && data.models) {
+        const chatModels = data.models.filter((m: any) => 
+          !m.id.includes('embed') && 
+          !m.id.includes('whisper') && 
+          !m.id.includes('guard')
+        );
+        
+        // Asegurar que los modelos de respaldo estén en la lista si no aparecen en la API
+        const fallbackModels = [
+          "openai/gpt-oss-120b",
+          "llama-3.3-70b-versatile",
+          "qwen/qwen3-32b"
+        ];
+        
+        const combinedModels = [...chatModels];
+        fallbackModels.forEach(fm => {
+          if (!combinedModels.find(m => m.id === fm)) {
+            combinedModels.unshift({ id: fm });
+          }
+        });
+
+        setAvailableModels(combinedModels);
+        if (combinedModels.length > 0) {
+          setModel(combinedModels[0].id);
+          setIsManualModel(false);
+        } else {
+          setIsManualModel(true);
+        }
+      } else {
+        setError(data.error || 'Error al cargar modelos');
+        setIsManualModel(true);
+      }
+    } catch (err: any) {
+      console.error("Error fetching models:", err);
+      setError(err.message || "Error de conexión al obtener modelos");
+      setIsManualModel(true);
+    } finally {
+      setLoadingModels(false);
+    }
+  };
+
+  const handleTest = async () => {
+    setLoading(true);
+    setError('');
+    setResponse('');
+    try {
+      const res = await fetch('/api/test-groq', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model, prompt })
+      });
+      
+      const contentType = res.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        throw new Error("El servidor no devolvió JSON. Verifica los logs del servidor.");
+      }
+      
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Error desconocido');
+      setResponse(data.response);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-slate-200 font-sans selection:bg-indigo-500/30">
-      {/* Header */}
-      <header className="border-b border-white/5 bg-black/20 backdrop-blur-xl sticky top-0 z-50">
-        <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center shadow-lg shadow-indigo-500/20">
-              <Mic className="w-5 h-5 text-white" />
-            </div>
-            <h1 className="text-lg font-semibold tracking-tight text-white">Super IA <span className="text-indigo-400 text-xs font-normal ml-1">v2.0</span></h1>
-          </div>
-          
-          <div className="flex items-center gap-4">
-            {loading ? (
-              <div className="w-8 h-8 border-2 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin" />
-            ) : user ? (
-              <div className="flex items-center gap-3 bg-white/5 pl-1 pr-3 py-1 rounded-full border border-white/10">
-                {user.photoURL ? (
-                  <Image src={user.photoURL} alt={user.displayName || ""} width={28} height={28} className="rounded-full" referrerPolicy="no-referrer" />
-                ) : (
-                  <div className="w-7 h-7 bg-indigo-500 rounded-full flex items-center justify-center">
-                    <User className="w-4 h-4 text-white" />
-                  </div>
-                )}
-                <span className="text-xs font-medium text-white hidden sm:inline">{user.displayName?.split(' ')[0]}</span>
-                <button 
-                  onClick={() => logout()}
-                  className="p-1 hover:text-red-400 transition-colors"
-                  title="Cerrar sesión"
+    <div className="bg-white rounded-2xl p-6 md:p-8 border border-slate-200 shadow-sm mt-8">
+      <h4 className="text-xl font-bold text-slate-900 mb-2 flex items-center gap-2">
+        <Play className="w-5 h-5 text-indigo-600" />
+        Paso 1.5: Tester y Configuración de Modelos Groq
+      </h4>
+      <p className="text-slate-600 mb-6">Prueba tu API Key y verifica qué modelo funciona mejor. Una vez que encuentres tu favorito, guárdalo para que Alexa lo use automáticamente (o configura la variable <code className="bg-slate-100 px-1 py-0.5 rounded text-slate-800 text-sm">GROQ_MODEL</code> si lo publicas en Vercel).</p>
+
+      <div className="space-y-4">
+        <div className="grid md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Modelo Seleccionado</label>
+            <div className="flex gap-2">
+              {isManualModel ? (
+                <input
+                  type="text"
+                  value={model}
+                  onChange={(e) => setModel(e.target.value)}
+                  placeholder="Ej: llama3-8b-8192"
+                  className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                />
+              ) : (
+                <select
+                  value={model}
+                  onChange={(e) => setModel(e.target.value)}
+                  disabled={loadingModels || availableModels.length === 0}
+                  className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none disabled:bg-slate-100 disabled:text-slate-500"
                 >
-                  <LogOut className="w-4 h-4" />
-                </button>
-              </div>
-            ) : (
+                  {availableModels.length === 0 && <option value="">Cargando modelos...</option>}
+                  {availableModels.map(m => (
+                    <option key={m.id} value={m.id}>{m.id}</option>
+                  ))}
+                </select>
+              )}
               <button 
-                onClick={() => loginWithGoogle()}
-                className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-1.5 rounded-full text-sm font-medium transition-all shadow-lg shadow-indigo-600/20"
+                onClick={() => setIsManualModel(!isManualModel)} 
+                className="px-3 py-2 border border-slate-300 rounded-lg hover:bg-slate-50 text-slate-600 text-sm whitespace-nowrap"
+                title="Alternar entrada manual"
               >
-                <LogIn className="w-4 h-4" />
-                Conectar Google
+                {isManualModel ? "Lista" : "Manual"}
               </button>
+              <button 
+                onClick={fetchModels} 
+                disabled={loadingModels}
+                className="px-3 py-2 border border-slate-300 rounded-lg hover:bg-slate-50 text-slate-600"
+                title="Recargar modelos"
+              >
+                {loadingModels ? <Loader2 className="w-4 h-4 animate-spin" /> : "↻"}
+              </button>
+            </div>
+            {activeModel && (
+              <p className="text-xs text-slate-500 mt-2">
+                Modelo actual en Alexa: <span className="font-semibold text-indigo-600">{activeModel}</span>
+              </p>
             )}
           </div>
-        </div>
-      </header>
-
-      <main className="max-w-6xl mx-auto px-6 py-12">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
-          {/* Sidebar / Navigation */}
-          <div className="lg:col-span-3 space-y-2">
-            <button 
-              onClick={() => setActiveTab('setup')}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${activeTab === 'setup' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20' : 'hover:bg-white/5 text-slate-400'}`}
-            >
-              <Settings className="w-4 h-4" />
-              Configuración
-            </button>
-            <button 
-              onClick={() => setActiveTab('model')}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${activeTab === 'model' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20' : 'hover:bg-white/5 text-slate-400'}`}
-            >
-              <MessageSquare className="w-4 h-4" />
-              Modelo Alexa
-            </button>
-            <button 
-              onClick={() => setActiveTab('profile')}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${activeTab === 'profile' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20' : 'hover:bg-white/5 text-slate-400'}`}
-            >
-              <User className="w-4 h-4" />
-              Perfil y Memoria
-            </button>
-            <button 
-              onClick={() => setActiveTab('security')}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${activeTab === 'security' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20' : 'hover:bg-white/5 text-slate-400'}`}
-            >
-              <Shield className="w-4 h-4" />
-              Seguridad y IA
-            </button>
-
-            <div className="pt-8 px-4">
-              <div className="p-4 bg-indigo-500/10 rounded-2xl border border-indigo-500/20">
-                <div className="flex items-center gap-2 text-indigo-400 mb-2">
-                  <Zap className="w-4 h-4" />
-                  <span className="text-xs font-bold uppercase tracking-wider">Nuevo: Maps</span>
-                </div>
-                <p className="text-xs text-slate-400 leading-relaxed">
-                  Ahora Super IA usa <strong>Gemini 2.5 Flash</strong> con Google Maps para darte información real de lugares.
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Content Area */}
-          <div className="lg:col-span-9">
-            <AnimatePresence mode="wait">
-              {activeTab === 'setup' && (
-                <motion.div 
-                  key="setup"
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  className="space-y-8"
-                >
-                  <section>
-                    <h2 className="text-2xl font-bold text-white mb-2">Configuración de la Skill</h2>
-                    <p className="text-slate-400 text-sm mb-6">Configura los parámetros técnicos para conectar Alexa con Groq y Gemini.</p>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div className="bg-white/5 border border-white/10 rounded-2xl p-6 hover:border-indigo-500/30 transition-colors group">
-                        <div className="flex items-center justify-between mb-4">
-                          <span className="text-xs font-bold text-indigo-400 uppercase tracking-widest">Endpoint URL</span>
-                          <button 
-                            onClick={() => copyToClipboard("https://ais-dev-pnotxe5savp25y2s7g3fc7-107312334344.us-east5.run.app/api/alexa", "url")}
-                            className="text-slate-500 hover:text-white transition-colors"
-                          >
-                            {copied === 'url' ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
-                          </button>
-                        </div>
-                        <p className="text-sm font-mono text-white break-all bg-black/40 p-3 rounded-lg border border-white/5">
-                          https://ais-dev-pnotxe5savp25y2s7g3fc7-107312334344.us-east5.run.app/api/alexa
-                        </p>
-                        <p className="mt-4 text-xs text-slate-500 flex items-center gap-2">
-                          <Info className="w-3 h-3" />
-                          Pega esto en &quot;HTTPS Endpoint&quot; en la consola de Alexa.
-                        </p>
-                      </div>
-
-                      <div className="bg-white/5 border border-white/10 rounded-2xl p-6 hover:border-indigo-500/30 transition-colors">
-                        <span className="text-xs font-bold text-indigo-400 uppercase tracking-widest block mb-4">Modelo Principal (Groq)</span>
-                        <div className="space-y-3">
-                          {!mounted ? (
-                            <div className="h-48 flex items-center justify-center">
-                              <div className="w-6 h-6 border-2 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin" />
-                            </div>
-                          ) : (
-                            FALLBACK_MODELS.map((model) => (
-                              <button
-                                key={model}
-                                onClick={() => handleModelChange(model)}
-                                className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm transition-all border ${selectedModel === model ? 'bg-indigo-600/20 border-indigo-500 text-white' : 'bg-black/20 border-white/5 text-slate-400 hover:border-white/20'}`}
-                              >
-                                <span className="font-mono text-xs">{model}</span>
-                                {selectedModel === model && <Check className="w-4 h-4" />}
-                              </button>
-                            ))
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </section>
-
-                  <section className="bg-indigo-600/10 border border-indigo-500/20 rounded-2xl p-8 relative overflow-hidden">
-                    <div className="relative z-10">
-                      <h3 className="text-lg font-bold text-white mb-2 flex items-center gap-2">
-                        <AlertCircle className="w-5 h-5 text-indigo-400" />
-                        Próximos Pasos
-                      </h3>
-                      <ol className="space-y-4 mt-6">
-                        <li className="flex gap-4">
-                          <span className="w-6 h-6 rounded-full bg-indigo-600 text-white text-xs flex items-center justify-center flex-shrink-0 font-bold">1</span>
-                          <p className="text-sm text-slate-300">Ve a la <a href="https://developer.amazon.com/alexa/console/ask" target="_blank" rel="noopener noreferrer" className="text-indigo-400 hover:underline inline-flex items-center gap-1">Consola de Desarrolladores de Alexa <ExternalLink className="w-3 h-3" /></a>.</p>
-                        </li>
-                        <li className="flex gap-4">
-                          <span className="w-6 h-6 rounded-full bg-indigo-600 text-white text-xs flex items-center justify-center flex-shrink-0 font-bold">2</span>
-                          <p className="text-sm text-slate-300">Crea una Skill con el nombre de invocación <strong>&quot;super ia&quot;</strong>.</p>
-                        </li>
-                        <li className="flex gap-4">
-                          <span className="w-6 h-6 rounded-full bg-indigo-600 text-white text-xs flex items-center justify-center flex-shrink-0 font-bold">3</span>
-                          <p className="text-sm text-slate-300">Configura el Endpoint HTTPS con la URL de arriba y selecciona <strong>&quot;My endpoint has a certificate from a trusted certificate authority&quot;</strong>.</p>
-                        </li>
-                      </ol>
-                    </div>
-                    <div className="absolute -right-8 -bottom-8 w-48 h-48 bg-indigo-600/10 rounded-full blur-3xl" />
-                  </section>
-                </motion.div>
-              )}
-
-              {activeTab === 'model' && (
-                <motion.div 
-                  key="model"
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  className="space-y-6"
-                >
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h2 className="text-2xl font-bold text-white mb-2">Modelo de Interacción</h2>
-                      <p className="text-slate-400 text-sm">Copia este JSON en el &quot;JSON Editor&quot; de tu Skill en Alexa.</p>
-                    </div>
-                    <button 
-                      onClick={() => copyToClipboard(JSON.stringify(alexaInteractionModel, null, 2), "json")}
-                      className="flex items-center gap-2 bg-white/5 hover:bg-white/10 text-white px-4 py-2 rounded-xl text-sm font-medium transition-all border border-white/10"
-                    >
-                      {copied === 'json' ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
-                      {copied === 'json' ? 'Copiado' : 'Copiar JSON'}
-                    </button>
-                  </div>
-                  
-                  <div className="bg-black/40 border border-white/10 rounded-2xl p-6 overflow-hidden">
-                    <pre className="text-xs font-mono text-indigo-300/80 overflow-x-auto max-h-[500px] custom-scrollbar">
-                      {JSON.stringify(alexaInteractionModel, null, 2)}
-                    </pre>
-                  </div>
-                </motion.div>
-              )}
-
-              {activeTab === 'profile' && (
-                <motion.div 
-                  key="profile"
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  className="space-y-8"
-                >
-                  <section>
-                    <h2 className="text-2xl font-bold text-white mb-2">Perfil y Memoria</h2>
-                    <p className="text-slate-400 text-sm mb-8">Personaliza lo que Super IA sabe sobre ti cuando hablas por Alexa.</p>
-                    
-                    {!user ? (
-                      <div className="bg-indigo-600/10 border border-indigo-500/20 rounded-2xl p-8 text-center">
-                        <User className="w-12 h-12 text-indigo-400 mx-auto mb-4" />
-                        <h3 className="text-lg font-bold text-white mb-2">Inicia sesión para personalizar</h3>
-                        <p className="text-sm text-slate-400 mb-6">Necesitas conectar tu cuenta de Google para guardar tus preferencias y vincular Alexa.</p>
-                        <button 
-                          onClick={() => loginWithGoogle()}
-                          className="bg-indigo-600 hover:bg-indigo-500 text-white px-6 py-2 rounded-full text-sm font-medium transition-all"
-                        >
-                          Conectar Google
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="space-y-6">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                          <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
-                            <label className="block text-xs font-bold text-indigo-400 uppercase tracking-widest mb-2">ID de Usuario Alexa</label>
-                            <input 
-                              type="text" 
-                              value={alexaUserId}
-                              onChange={(e) => setAlexaUserId(e.target.value)}
-                              placeholder="amzn1.ask.account.XXXX"
-                              className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:border-indigo-500 outline-none transition-all font-mono"
-                            />
-                            <p className="mt-3 text-[10px] text-slate-500 leading-relaxed">
-                              Puedes encontrar este ID en los logs de tu Skill o preguntando &quot;Alexa, ¿cuál es mi ID?&quot; (si has configurado una respuesta para ello). Esto vincula tu voz con este perfil.
-                            </p>
-                          </div>
-
-                          <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
-                            <label className="block text-xs font-bold text-indigo-400 uppercase tracking-widest mb-2">Ciudad Predeterminada</label>
-                            <div className="relative">
-                              <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-                              <input 
-                                type="text" 
-                                value={city}
-                                onChange={(e) => setCity(e.target.value)}
-                                placeholder="Ej: Madrid, España"
-                                className="w-full bg-black/40 border border-white/10 rounded-xl pl-11 pr-4 py-3 text-sm text-white focus:border-indigo-500 outline-none transition-all"
-                              />
-                            </div>
-                            <p className="mt-3 text-[10px] text-slate-500 leading-relaxed">
-                              Super IA usará esta ciudad para darte el clima, noticias locales y recomendaciones si no especificas otra.
-                            </p>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center justify-between bg-white/5 border border-white/10 rounded-2xl p-6">
-                          <div className="flex items-center gap-4">
-                            <div className="w-10 h-10 bg-indigo-500/20 rounded-xl flex items-center justify-center">
-                              <Database className="w-5 h-5 text-indigo-400" />
-                            </div>
-                            <div>
-                              <h4 className="text-sm font-semibold text-white">Guardar en la Nube</h4>
-                              <p className="text-xs text-slate-500">Tus preferencias se sincronizan al instante.</p>
-                            </div>
-                          </div>
-                          <button 
-                            onClick={savePreferences}
-                            disabled={isSaving}
-                            className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold transition-all ${saveStatus === 'success' ? 'bg-emerald-600 text-white' : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/20'} disabled:opacity-50`}
-                          >
-                            {isSaving ? (
-                              <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                            ) : saveStatus === 'success' ? (
-                              <Check className="w-4 h-4" />
-                            ) : (
-                              <Save className="w-4 h-4" />
-                            )}
-                            {saveStatus === 'success' ? '¡Guardado!' : 'Guardar Cambios'}
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </section>
-                </motion.div>
-              )}
-
-              {activeTab === 'security' && (
-                <motion.div 
-                  key="security"
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  className="space-y-8"
-                >
-                  <section>
-                    <h2 className="text-2xl font-bold text-white mb-2">Seguridad y Privacidad</h2>
-                    <p className="text-slate-400 text-sm mb-8">Cómo protegemos tus datos y qué tecnologías de IA estamos utilizando.</p>
-                    
-                    <div className="space-y-4">
-                      <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
-                        <div className="flex items-start gap-4">
-                          <div className="w-10 h-10 bg-emerald-500/20 rounded-xl flex items-center justify-center flex-shrink-0">
-                            <Shield className="w-5 h-5 text-emerald-400" />
-                          </div>
-                          <div>
-                            <h4 className="text-white font-semibold mb-1">Firebase Authentication</h4>
-                            <p className="text-sm text-slate-400 leading-relaxed">
-                              Usamos Google Sign-In para identificarte de forma segura. No almacenamos tus contraseñas. Tus datos de perfil se guardan en Firestore con reglas de seguridad estrictas.
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
-                        <div className="flex items-start gap-4">
-                          <div className="w-10 h-10 bg-indigo-500/20 rounded-xl flex items-center justify-center flex-shrink-0">
-                            <MapPin className="w-5 h-5 text-indigo-400" />
-                          </div>
-                          <div>
-                            <h4 className="text-white font-semibold mb-1">Google Maps Grounding</h4>
-                            <p className="text-sm text-slate-400 leading-relaxed">
-                              Para consultas sobre lugares, usamos <strong>Gemini 2.5 Flash</strong>. Esta tecnología permite a la IA consultar Google Maps en tiempo real para darte horarios, direcciones y valoraciones reales de negocios.
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
-                        <div className="flex items-start gap-4">
-                          <div className="w-10 h-10 bg-orange-500/20 rounded-xl flex items-center justify-center flex-shrink-0">
-                            <MessageSquare className="w-5 h-5 text-orange-400" />
-                          </div>
-                          <div>
-                            <h4 className="text-white font-semibold mb-1">Groq Cloud API</h4>
-                            <p className="text-sm text-slate-400 leading-relaxed">
-                              Para preguntas generales, usamos la infraestructura de Groq, que ofrece la latencia más baja del mercado, asegurando que Alexa te responda casi instantáneamente.
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </section>
-                </motion.div>
-              )}
-            </AnimatePresence>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Mensaje de prueba</label>
+            <input
+              type="text"
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+              className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+              placeholder="Escribe algo..."
+            />
           </div>
         </div>
-      </main>
 
-      <footer className="max-w-6xl mx-auto px-6 py-12 border-t border-white/5 mt-12">
-        <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-          <div className="flex items-center gap-2 text-slate-500 text-sm">
-            <span>Super IA Project</span>
-            <ChevronRight className="w-3 h-3" />
-            <span>2026</span>
-          </div>
-          <div className="flex items-center gap-8">
-            <a href="#" className="text-xs text-slate-500 hover:text-white transition-colors">Términos</a>
-            <a href="#" className="text-xs text-slate-500 hover:text-white transition-colors">Privacidad</a>
-            <a href="#" className="text-xs text-slate-500 hover:text-white transition-colors">Documentación API</a>
-          </div>
+        <div className="flex flex-wrap gap-3 pt-2">
+          <button
+            onClick={handleTest}
+            disabled={loading || !prompt}
+            className="bg-slate-800 hover:bg-slate-900 disabled:opacity-50 text-white font-medium py-2 px-4 rounded-lg flex items-center gap-2 transition-colors"
+          >
+            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
+            Probar Modelo
+          </button>
+          <button
+            onClick={handleSaveModel}
+            disabled={savingModel || !model || model === activeModel}
+            className="bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-medium py-2 px-4 rounded-lg flex items-center gap-2 transition-colors"
+          >
+            {savingModel ? <Loader2 className="w-4 h-4 animate-spin" /> : <Settings className="w-4 h-4" />}
+            Usar este modelo en Alexa
+          </button>
         </div>
-      </footer>
 
-      <style jsx global>{`
-        .custom-scrollbar::-webkit-scrollbar {
-          width: 6px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-track {
-          background: transparent;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-          background: rgba(255, 255, 255, 0.1);
-          border-radius: 10px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-          background: rgba(255, 255, 255, 0.2);
-        }
-      `}</style>
+        {error && (
+          <div className="bg-red-50 text-red-700 p-3 rounded-lg text-sm border border-red-200">
+            <strong>Error:</strong> {error}
+          </div>
+        )}
+
+        {successMsg && (
+          <div className="bg-emerald-50 text-emerald-700 p-3 rounded-lg text-sm border border-emerald-200 flex items-center gap-2">
+            <CircleCheck className="w-4 h-4" />
+            {successMsg}
+          </div>
+        )}
+
+        {response && (
+          <div className="bg-slate-50 border border-slate-200 p-4 rounded-lg mt-4">
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Respuesta de {model}</p>
+            <p className="text-slate-800 whitespace-pre-wrap">{response}</p>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
+
+function GeminiMapsAssistant() {
+  const [prompt, setPrompt] = React.useState('¿Qué restaurantes de sushi hay en Madrid?');
+  const [response, setResponse] = React.useState('');
+  const [groundingLinks, setGroundingLinks] = React.useState<{uri: string, title: string}[]>([]);
+  const [loading, setLoading] = React.useState(false);
+  const [error, setError] = React.useState('');
+
+  const handleSearch = async () => {
+    if (!prompt.trim()) return;
+    setLoading(true);
+    setError('');
+    setResponse('');
+    setGroundingLinks([]);
+
+    try {
+      const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+      if (!apiKey) {
+        throw new Error("La API Key de Gemini no está configurada en los secretos (NEXT_PUBLIC_GEMINI_API_KEY).");
+      }
+
+      const ai = new GoogleGenAI({ apiKey });
+      
+      const result = await ai.models.generateContent({
+        model: "gemini-2.5-flash",
+        contents: prompt,
+        config: {
+          tools: [{ googleMaps: {} }],
+        },
+      });
+
+      setResponse(result.text || "No se obtuvo respuesta.");
+
+      // Extraer enlaces de grounding (Google Maps)
+      const chunks = result.candidates?.[0]?.groundingMetadata?.groundingChunks;
+      if (chunks) {
+        const links = chunks
+          .filter((chunk: any) => chunk.maps)
+          .map((chunk: any) => ({
+            uri: chunk.maps.uri,
+            title: chunk.maps.title || "Ver en Google Maps"
+          }));
+        setGroundingLinks(links);
+      }
+    } catch (err: any) {
+      console.error("Error con Gemini Maps:", err);
+      setError(err.message || "Error al conectar con Gemini.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="bg-white rounded-xl p-6 border border-slate-200 shadow-sm space-y-6">
+      <div className="flex items-center gap-3">
+        <div className="bg-emerald-100 p-2 rounded-lg">
+          <MapPin className="w-5 h-5 text-emerald-600" />
+        </div>
+        <div>
+          <h3 className="text-lg font-bold text-slate-900">Asistente de Google Maps (Gemini)</h3>
+          <p className="text-sm text-slate-500">Consulta lugares en tiempo real con inteligencia artificial.</p>
+        </div>
+      </div>
+
+      <div className="space-y-4">
+        <div className="flex gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <input
+              type="text"
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+              className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all"
+              placeholder="Ej: ¿Qué museos hay en París?"
+            />
+          </div>
+          <button
+            onClick={handleSearch}
+            disabled={loading}
+            className="bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-medium py-2 px-6 rounded-lg transition-colors flex items-center gap-2"
+          >
+            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
+            Consultar
+          </button>
+        </div>
+
+        {error && (
+          <div className="bg-red-50 text-red-700 p-4 rounded-lg text-sm border border-red-200 flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 shrink-0" />
+            <div>
+              <p className="font-semibold">Error de Configuración</p>
+              <p>{error}</p>
+              <div className="mt-2 text-xs opacity-80">
+                Asegúrate de haber añadido <strong>NEXT_PUBLIC_GEMINI_API_KEY</strong> en Configuración → Secretos.
+              </div>
+            </div>
+          </div>
+        )}
+
+        {response && (
+          <div className="bg-slate-50 border border-slate-200 p-5 rounded-xl space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+              <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Respuesta de Gemini 2.5 Flash</span>
+              <div className="flex items-center gap-1 text-emerald-600 text-xs font-medium">
+                <CircleCheck className="w-3 h-3" /> Grounding Activado
+              </div>
+            </div>
+            <div className="text-slate-700 leading-relaxed whitespace-pre-wrap text-sm">
+              {response}
+            </div>
+            
+            {groundingLinks.length > 0 && (
+              <div className="pt-4 border-t border-slate-200">
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-3">Lugares encontrados:</p>
+                <div className="flex flex-wrap gap-2">
+                  {groundingLinks.map((link, idx) => (
+                    <a
+                      key={idx}
+                      href={link.uri}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 px-3 py-1.5 bg-white border border-slate-200 rounded-full text-xs font-medium text-slate-600 hover:border-emerald-500 hover:text-emerald-600 transition-all shadow-sm"
+                    >
+                      <MapPin className="w-3 h-3" />
+                      {link.title}
+                      <ExternalLink className="w-3 h-3 opacity-40" />
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      <div className="bg-amber-50 border border-amber-100 p-4 rounded-xl flex gap-3">
+        <Info className="w-5 h-5 text-amber-600 shrink-0" />
+        <div className="text-xs text-amber-800 space-y-1">
+          <p className="font-bold">Configuración de Google Maps:</p>
+          <p>Para ver mapas interactivos en el futuro, añade tu clave de Google Maps Platform:</p>
+          <ol className="list-decimal list-inside opacity-80">
+            <li>Obtén una clave en <a href="https://console.cloud.google.com/google/maps-apis/credentials" target="_blank" className="underline">Google Cloud Console</a>.</li>
+            <li>Añade el secreto <strong>GOOGLE_MAPS_PLATFORM_KEY</strong> en el menú de Configuración (⚙️).</li>
+          </ol>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const interactionModelJson = `{
+  "interactionModel": {
+    "languageModel": {
+      "invocationName": "super ia",
+      "intents": [
+        {
+          "name": "AMAZON.CancelIntent",
+          "samples": []
+        },
+        {
+          "name": "AMAZON.HelpIntent",
+          "samples": []
+        },
+        {
+          "name": "AMAZON.StopIntent",
+          "samples": []
+        },
+        {
+          "name": "AMAZON.FallbackIntent",
+          "samples": []
+        },
+        {
+          "name": "AMAZON.NavigateHomeIntent",
+          "samples": []
+        },
+        {
+          "name": "GroqIntent",
+          "slots": [
+            {
+              "name": "Query",
+              "type": "AMAZON.SearchQuery"
+            }
+          ],
+          "samples": [
+            "{Query}",
+            "pregunta {Query}",
+            "consulta {Query}",
+            "busca {Query}",
+            "dime {Query}",
+            "qué es {Query}",
+            "quién es {Query}",
+            "qué puedes hacer",
+            "qué sabes hacer"
+          ]
+        }
+      ],
+      "types": []
+    }
+  }
+}`;

@@ -1,50 +1,41 @@
 {
   "entities": {
-    "UserProfile": {
-      "title": "UserProfile",
-      "description": "Información del perfil del usuario",
+    "User": {
+      "title": "User",
+      "description": "Información del usuario y preferencias",
       "type": "object",
       "properties": {
-        "uid": { "type": "string", "description": "ID único del usuario en Firebase" },
-        "alexaUserId": { "type": "string", "description": "ID de usuario de Alexa (opcional, para vinculación)" },
-        "displayName": { "type": "string", "description": "Nombre para mostrar" },
-        "email": { "type": "string", "description": "Correo electrónico" },
-        "photoURL": { "type": "string", "description": "URL de la foto de perfil" },
-        "preferences": {
-          "type": "object",
-          "description": "Preferencias personalizadas del usuario",
-          "properties": {
-            "city": { "type": "string", "description": "Ciudad de residencia" },
-            "timezone": { "type": "string", "description": "Zona horaria" },
-            "interests": { "type": "array", "items": { "type": "string" }, "description": "Intereses del usuario" }
-          }
-        },
+        "uid": { "type": "string", "description": "ID único de Firebase Auth" },
+        "alexaUserId": { "type": "string", "description": "ID de usuario de Alexa" },
+        "name": { "type": "string", "description": "Nombre del usuario" },
+        "city": { "type": "string", "description": "Ciudad para el clima/mapas" },
+        "interests": { "type": "array", "items": { "type": "string" }, "description": "Intereses del usuario" },
         "createdAt": { "type": "string", "format": "date-time", "description": "Fecha de creación" }
       },
-      "required": ["uid", "email"]
+      "required": ["uid", "alexaUserId"]
     },
     "Interaction": {
       "title": "Interaction",
       "description": "Historial de interacciones con Alexa",
       "type": "object",
       "properties": {
-        "userId": { "type": "string", "description": "ID del usuario (si está vinculado)" },
+        "uid": { "type": "string", "description": "ID del usuario" },
         "query": { "type": "string", "description": "Pregunta del usuario" },
         "response": { "type": "string", "description": "Respuesta de la IA" },
-        "model": { "type": "string", "description": "Modelo utilizado" },
+        "model": { "type": "string", "description": "Modelo utilizado (Groq/Gemini)" },
         "timestamp": { "type": "string", "format": "date-time", "description": "Fecha de la interacción" }
       },
-      "required": ["query", "response", "timestamp"]
+      "required": ["uid", "query", "response", "timestamp"]
     }
   },
   "firestore": {
-    "/users/{userId}": {
-      "schema": "UserProfile",
-      "description": "Colección de perfiles de usuario"
+    "/users/{uid}": {
+      "schema": "User",
+      "description": "Perfiles de usuario"
     },
     "/interactions/{interactionId}": {
       "schema": "Interaction",
-      "description": "Colección global de interacciones (para depuración y analíticas)"
+      "description": "Historial global de interacciones"
     }
   }
 }

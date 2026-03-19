@@ -1,5 +1,5 @@
 {
-  "name": "Alexa Grok Integration",
-  "description": "Una integración para conectar Amazon Alexa con la API de Grok (xAI) y darle superpoderes a tu asistente de voz.",
+  "name": "Super IA Alexa Assistant",
+  "description": "Asistente inteligente con Groq y Gemini para Alexa",
   "requestFramePermissions": []
 }

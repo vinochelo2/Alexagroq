@@ -1,34 +1,33 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    
     // ===============================================================
     // Assumed Data Model
     // ===============================================================
     //
     // Collection: users
-    // Document ID: {userId} (matches auth.uid)
+    // Document ID: {uid}
     // Fields:
     //   - uid: string (required)
-    //   - displayName: string (optional)
-    //   - email: string (required, PII)
-    //   - photoURL: string (optional)
-    //   - createdAt: string (format: date-time)
+    //   - alexaUserId: string (required)
+    //   - name: string (optional)
+    //   - city: string (optional)
+    //   - interests: list (optional)
+    //   - createdAt: timestamp (optional)
     //
     // Collection: interactions
     // Document ID: {interactionId}
     // Fields:
-    //   - userId: string (optional)
+    //   - uid: string (required)
     //   - query: string (required)
     //   - response: string (required)
-    //   - model: string (optional)
-    //   - timestamp: string (format: date-time)
+    //   - model: string (required)
+    //   - timestamp: timestamp (required)
     //
     // ===============================================================
 
-    // ===============================================================
     // Helper Functions
-    // ===============================================================
-    
     function isAuthenticated() {
       return request.auth != null;
     }
@@ -38,60 +37,49 @@ service cloud.firestore {
     }
 
     function isAdmin() {
-      return isAuthenticated() &&
+      return isAuthenticated() && 
         (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
-          (request.auth.token.email == "vinochelo2@gmail.com" && request.auth.token.email_verified == true));
+         (request.auth.token.email == "vinochelo2@gmail.com" && request.auth.token.email_verified == true));
     }
 
-    function hasRequiredFields(fields) {
-      return request.resource.data.keys().hasAll(fields);
+    function isValidUser(data) {
+      return data.keys().hasAll(['uid', 'alexaUserId']) &&
+             data.uid is string && data.uid.size() > 0 &&
+             data.alexaUserId is string && data.alexaUserId.size() > 0 &&
+             (!('name' in data) || (data.name is string && data.name.size() < 100)) &&
+             (!('city' in data) || (data.city is string && data.city.size() < 100));
     }
 
-    function isValidEmail(email) {
-      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    function isValidInteraction(data) {
+      return data.keys().hasAll(['uid', 'query', 'response', 'model', 'timestamp']) &&
+             data.uid is string && data.uid == request.auth.uid &&
+             data.query is string && data.query.size() < 1000 &&
+             data.response is string && data.response.size() < 5000 &&
+             data.model is string &&
+             data.timestamp is timestamp;
     }
 
-    function isValidDateString(dateStr) {
-      return dateStr is string && dateStr.matches("^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}.*Z?$");
-    }
-
-    // ===============================================================
-    // Collection Rules
-    // ===============================================================
-
-    // User profiles: Only owner can read/write their own profile
+    // Rules
     match /users/{userId} {
-      function isValidUser(data) {
-        return data.uid is string && data.uid.size() > 0 && data.uid.size() < 128 &&
-               isValidEmail(data.email) &&
-               (!('displayName' in data) || (data.displayName is string && data.displayName.size() < 100)) &&
-               (!('photoURL' in data) || (data.photoURL is string && data.photoURL.size() < 500)) &&
-               isValidDateString(data.createdAt);
-      }
-
-      allow read: if isOwner(userId) || isAdmin();
-      allow create: if isOwner(userId) && isValidUser(request.resource.data) && (!('role' in request.resource.data) || isAdmin());
-      allow update: if isOwner(userId) && isValidUser(request.resource.data) && (request.resource.data.role == resource.data.role || isAdmin());
-      allow delete: if isAdmin();
+      // Allow Alexa endpoint (unauthenticated) to find user context by alexaUserId
+      // Note: In production, use Firebase Admin SDK on the server to avoid public read access.
+      allow read: if request.auth == null || isOwner(userId) || isAdmin();
+      allow create: if isAuthenticated() && isOwner(userId) && isValidUser(request.resource.data);
+      allow update: if isAuthenticated() && isOwner(userId) && isValidUser(request.resource.data) && 
+                      request.resource.data.uid == resource.data.uid;
     }
 
-    // Interactions: Users can create their own, admins can read all
     match /interactions/{interactionId} {
-      function isValidInteraction(data) {
-        return data.query is string && data.query.size() > 0 && data.query.size() < 5000 &&
-               data.response is string && data.response.size() > 0 && data.response.size() < 10000 &&
-               isValidDateString(data.timestamp);
-      }
-
-      allow read: if isAdmin();
-      allow create: if isValidInteraction(request.resource.data) && 
-                      (!('userId' in request.resource.data) || request.resource.data.userId == request.auth.uid);
-      allow update, delete: if isAdmin();
-    }
-
-    // Default deny
-    match /{path=**} {
-      allow read, write: if false;
+      allow read: if isAuthenticated() && (resource.data.uid == request.auth.uid || isAdmin());
+      // Allow Alexa endpoint (unauthenticated) to save interactions
+      allow create: if (request.auth == null || isAuthenticated()) && 
+                      request.resource.data.keys().hasAll(['uid', 'query', 'response', 'model', 'timestamp']) &&
+                      request.resource.data.uid is string &&
+                      request.resource.data.query is string && request.resource.data.query.size() < 1000 &&
+                      request.resource.data.response is string && request.resource.data.response.size() < 5000 &&
+                      request.resource.data.model is string &&
+                      request.resource.data.timestamp is timestamp;
+      allow delete: if isAdmin();
     }
   }
 }
